@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Resguardo · Revisor Ley 21.719",
   "short_name": "Resguardo",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Revisa en un clic si un sitio web cumple señales básicas de la Ley 21.719 de protección de datos personales de Chile. Todo se analiza localmente.",
   "permissions": ["activeTab", "scripting", "storage"],
   "action": {

@@ -17,6 +17,15 @@ Todo el análisis ocurre en tu navegador. No se envía ni se guarda ningún dato
 1. Abre `chrome://extensions` y activa **Modo desarrollador**.
 2. Pulsa **Cargar descomprimida** y elige esta carpeta.
 
+## Empaquetar
+```
+python tools/build_zip.py
+```
+Genera `dist/resguardo-<versión>.zip`, listo para cargar o subir a la Chrome Web Store.
+
+## Licencia
+MIT. Ver `LICENSE`.
+
 ## Regenerar iconos
 ```
 python tools/make_icons.py
