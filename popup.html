@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Resguardo</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" width="36" height="36">
+    <div>
+      <h1>Resguardo</h1>
+      <p>Revisor Ley 21.719</p>
+    </div>
+  </header>
+
+  <main id="estado" class="cargando">Analizando la página…</main>
+
+  <section id="resultado" hidden>
+    <div class="score">
+      <div class="anillo" id="anillo"><span id="puntaje">0</span></div>
+      <div>
+        <strong id="veredicto"></strong>
+        <small id="sitio"></small>
+      </div>
+    </div>
+    <ul id="lista"></ul>
+    <button id="copiar" type="button">Copiar informe</button>
+  </section>
+
+  <footer>
+    Revisión orientativa y local. No es asesoría legal.
+  </footer>
+  <script src="scanner.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
