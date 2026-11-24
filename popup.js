@@ -33,6 +33,7 @@ function render(r) {
     box.append(fix);
     if (f.evidencia && f.evidencia.length) {
       const d = el("details");
+      d.open = true;
       d.append(el("summary", null, `Evidencia (${f.evidencia.length})`));
       const ul = el("ul");
       f.evidencia.forEach((e) => ul.append(el("li", null, e)));
