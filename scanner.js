@@ -1,126 +1,185 @@
-// Se inyecta en la pestaña activa. Debe ser autocontenida y devolver datos serializables.
-// Todo el análisis ocurre localmente: no se envía nada a ningún servidor.
-function resguardoScan() {
-  const text = (document.body ? document.body.innerText : "").toLowerCase();
-  const html = document.documentElement.outerHTML.toLowerCase();
-  const links = [...document.querySelectorAll("a[href]")];
-  const linkInfo = links.map((a) => ({
-    t: (a.textContent || "").trim().toLowerCase(),
-    h: (a.getAttribute("href") || "").toLowerCase(),
-  }));
-  const has = (re) => re.test(text);
-  const linkHas = (re) => linkInfo.some((l) => re.test(l.t) || re.test(l.h));
-
-  const checks = [];
-  const add = (id, titulo, ok, peso, detalle, consejo) =>
-    checks.push({ id, titulo, ok, peso, detalle, consejo });
-
-  // 1. Política de privacidad
-  const privLink = linkHas(/privacidad|datos personales|privacy|tratamiento de datos/);
-  add("politica", "Política de privacidad visible", privLink, 20,
-    privLink ? "Se encontró un enlace a la política de privacidad." : "No se encontró enlace a una política de privacidad.",
-    "Publica y enlaza en el pie de página una política de privacidad clara y en español.");
-
-  // 2. Derechos del titular (acceso, rectificación, supresión, oposición, portabilidad, bloqueo)
-  const derechos = {
-    acceso: /\bacceso\b/,
-    rectificación: /rectificaci[oó]n|rectificar/,
-    supresión: /supresi[oó]n|cancelaci[oó]n|eliminaci[oó]n|derecho al olvido/,
-    oposición: /oposici[oó]n|oponerse/,
-    portabilidad: /portabilidad/,
-    bloqueo: /bloqueo/,
+// Se inyecta en la pestaña activa y devuelve datos serializables.
+// Todo el análisis ocurre localmente. Solo se descarga la política de privacidad
+// si está en el mismo sitio que la página revisada.
+async function resguardoScan() {
+  const norm = (s) => (s || "").toLowerCase().replace(/\s+/g, " ");
+  const snippet = (txt, re, n = 90) => {
+    const m = re.exec(txt);
+    if (!m) return null;
+    const i = Math.max(0, m.index - n), j = Math.min(txt.length, m.index + m[0].length + n);
+    return "…" + txt.slice(i, j).trim() + "…";
   };
-  const encontrados = Object.entries(derechos).filter(([, re]) => re.test(text)).map(([k]) => k);
-  const derechosOk = encontrados.length >= 4;
-  add("derechos", "Derechos del titular (ARCO+)", derechosOk, 20,
-    encontrados.length
-      ? `Menciona: ${encontrados.join(", ")} (${encontrados.length}/6).`
-      : "No menciona derechos del titular en esta página.",
-    "Informa los derechos de acceso, rectificación, supresión, oposición, portabilidad y bloqueo, y cómo ejercerlos.");
 
-  // 3. Contacto del responsable de datos
-  const correo = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/.test(text) || linkInfo.some((l) => l.h.startsWith("mailto:"));
-  const responsable = has(/responsable (del tratamiento|de datos)|delegado de protecci[oó]n|encargado de (datos|privacidad)/);
-  const contactoOk = correo && responsable;
-  add("responsable", "Responsable y canal de contacto", contactoOk, 15,
-    `Correo de contacto: ${correo ? "sí" : "no"} · Responsable identificado: ${responsable ? "sí" : "no"}.`,
-    "Identifica al responsable del tratamiento y entrega un correo para ejercer derechos.");
+  const pageText = norm(document.body ? document.body.innerText : "");
+  const html = document.documentElement.outerHTML.toLowerCase();
+  const anchors = [...document.querySelectorAll("a[href]")].map((a) => ({
+    t: norm(a.textContent), h: a.href, hl: a.href.toLowerCase(),
+  }));
 
-  // 4. Finalidad y base de licitud
-  const finalidad = has(/finalidad|fines? (del|de) tratamiento|utilizamos (sus|tus) datos|base de licitud|consentimiento/);
-  add("finalidad", "Finalidad y base de licitud", finalidad, 10,
-    finalidad ? "Hay referencias a finalidad o consentimiento." : "No se detecta finalidad del tratamiento.",
-    "Explica para qué usas cada dato y en qué base legal (consentimiento, contrato, interés legítimo).");
+  const findings = [], ok = [];
+  const grave = (o) => findings.push({ sev: "grave", ...o });
+  const atencion = (o) => findings.push({ sev: "atencion", ...o });
 
-  // 5. Plazo de conservación
-  const plazo = has(/plazo de conservaci[oó]n|conservaremos|conservar[aá]n? (sus|tus)? ?datos|per[ií]odo de retenci[oó]n|tiempo que sea necesario/);
-  add("conservacion", "Plazo de conservación", plazo, 5,
-    plazo ? "Menciona cuánto tiempo guarda los datos." : "No indica por cuánto tiempo conserva los datos.",
-    "Indica el plazo o criterio de conservación de los datos.");
+  // ---- 1. Política de privacidad: localizar y descargar ----
+  const cand = anchors.filter((l) => /pol[ií]tica.{0,20}(privacidad|datos)|privacidad|datos personales|privacy/.test(l.t + " " + l.hl));
+  const mismoSitio = cand.find((l) => { try { return new URL(l.h).origin === location.origin; } catch { return false; } });
+  const link = mismoSitio || cand[0] || null;
+  let policy = { url: link ? link.h : null, chars: 0, descargada: false };
+  let pol = "";
 
-  // 6. Transferencias internacionales
-  const transf = has(/transferencia(s)? internacional|terceros pa[ií]ses|fuera de chile|encargados? del tratamiento|compartimos (sus|tus) datos/);
-  add("transferencias", "Transferencias y terceros", transf, 5,
-    transf ? "Informa sobre terceros o transferencias." : "No informa sobre terceros ni transferencias internacionales.",
-    "Declara con quién compartes datos y si salen de Chile.");
-
-  // 7. Formularios que piden datos personales
-  const forms = [...document.forms];
-  const camposPersonales = [];
-  let formsConDatos = 0, formsConConsent = 0;
-  forms.forEach((f) => {
-    const campos = [...f.querySelectorAll("input,textarea,select")];
-    const personales = campos.filter((c) => {
-      const s = `${c.type} ${c.name} ${c.id} ${c.placeholder} ${c.autocomplete}`.toLowerCase();
-      if (/password|hidden|search|submit/.test(c.type)) return false;
-      return /mail|correo|tel|phone|rut|run|nombre|name|direcci|address|fecha|birth|nacim/.test(s) || c.type === "email" || c.type === "tel";
+  if (!link) {
+    grave({
+      id: "sin-politica", titulo: "No se encontró enlace a la política de privacidad",
+      detalle: "En esta página no hay ningún enlace visible hacia una política de tratamiento de datos personales.",
+      articulo: "Artículo 14 ter · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Publica la política y enlázala de forma visible, por ejemplo en el pie de página.",
+      evidencia: [`Enlaces revisados: ${anchors.length}`],
     });
-    if (personales.length) {
-      formsConDatos++;
-      personales.forEach((p) => camposPersonales.push((p.name || p.id || p.type || "campo")));
-      const ctx = f.innerText.toLowerCase();
-      const checkbox = f.querySelector('input[type="checkbox"]');
-      const acepta = /acepto|consiento|autorizo|pol[ií]tica de privacidad|t[eé]rminos/.test(ctx);
-      if (checkbox && acepta) formsConConsent++;
-    }
-  });
-  if (formsConDatos) {
-    const ok = formsConConsent === formsConDatos;
-    add("formularios", "Consentimiento en formularios", ok, 15,
-      `${formsConDatos} formulario(s) piden datos personales; ${formsConConsent} tienen casilla de consentimiento.`,
-      "Agrega una casilla (sin marcar de antemano) que enlace a la política de privacidad en cada formulario.");
+  } else if (mismoSitio) {
+    try {
+      const r = await fetch(link.h, { credentials: "omit" });
+      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+      doc.querySelectorAll("script,style,noscript").forEach((n) => n.remove());
+      pol = norm(doc.body ? doc.body.textContent : "");
+      policy.chars = pol.length; policy.descargada = pol.length > 200;
+    } catch { /* se informa más abajo */ }
   }
 
-  // 8. Cookies y rastreadores
-  const rastreadores = [];
+  if (link && !policy.descargada) {
+    atencion({
+      id: "politica-no-leida", titulo: "No se pudo leer la política de privacidad",
+      detalle: link.h && !mismoSitio
+        ? "El enlace apunta a otro dominio, por lo que no se descargó. Solo se revisó la página actual."
+        : "La descarga falló o el contenido es muy corto (a veces se carga con JavaScript).",
+      articulo: "Artículo 14 ter · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Abre la política y vuelve a ejecutar la revisión desde esa página.",
+      evidencia: [link.h],
+    });
+    pol = pageText; // se intenta con lo visible en la página
+  }
+
+  // ---- 2. Contenido de la política ----
+  if (policy.descargada || (link && pol)) {
+    // 2a. Agencia de Protección de Datos
+    const agRe = /agencia de protecci[oó]n de datos/;
+    if (!agRe.test(pol)) {
+      grave({
+        id: "agencia", titulo: "La política no menciona a la Agencia de Protección de Datos",
+        detalle: "No aparece el derecho de reclamar ante la Agencia. Su ausencia suele indicar que la política no se actualizó a la nueva ley.",
+        articulo: "Artículo 14 ter, literal g) · Ley 19.628, modificada por la Ley 21.719",
+        consejo: "Agrega una sección que informe el derecho a reclamar ante la Agencia y el canal para ejercer los derechos.",
+        evidencia: ["Búsqueda de “Agencia de Protección de Datos”: sin resultados"],
+      });
+    } else {
+      ok.push({ titulo: "Menciona a la Agencia de Protección de Datos", detalle: "Informa el derecho a reclamar ante la Agencia.", articulo: "Artículo 14 ter, literal g)" });
+    }
+
+    // 2b. Puntos que debe declarar la política
+    const puntos = [
+      { k: "a", n: "la fecha y la versión de la política", re: /(vigencia|[uú]ltima actualizaci[oó]n|actualizad[oa] (el|en)|versi[oó]n\s*\d|fecha de (entrada|vigencia))/ },
+      { k: "c", n: "un canal de contacto para ejercer los derechos", re: /(ejercer (sus|tus)? ?derechos|derechos? arco|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/ },
+      { k: "e", n: "las medidas de seguridad adoptadas", re: /medidas (t[eé]cnicas|de seguridad|organizativas)|seguridad de (la informaci[oó]n|los datos)|cifrad|encriptad/ },
+      { k: "f", n: "el derecho de portabilidad", re: /portabilidad/ },
+      { k: "i", n: "por cuánto tiempo se conservan los datos", re: /plazo de conservaci[oó]n|conservar[aá]n?|per[ií]odo de (conservaci[oó]n|retenci[oó]n)|mientras (dure|sea necesario)|a[nñ]os/ },
+      { k: "k", n: "el derecho a retirar el consentimiento", re: /(retirar|revocar|revocaci[oó]n).{0,40}consentimiento|consentimiento.{0,60}(retirar|revocar)/ },
+      { k: "l", n: "si hay decisiones automatizadas o perfiles", re: /decisiones? automatizadas?|elaboraci[oó]n de perfiles|perfilamiento|perfilado/ },
+    ];
+    const si = puntos.filter((p) => p.re.test(pol));
+    const no = puntos.filter((p) => !p.re.test(pol));
+    if (no.length) {
+      grave({
+        id: "puntos", titulo: `La política no informa ${no.length} de ${puntos.length} puntos que la ley exige`,
+        detalle: "Falta referencia a: " + no.map((p) => p.n).join("; ") + ".",
+        articulo: "Artículo 14 ter, literales " + no.map((p) => p.k).join(" ") + " · Ley 19.628, modificada por la Ley 21.719",
+        consejo: "Agrega una sección por cada punto faltante:\n" + no.map((p) => `${p.k}) ${p.n[0].toUpperCase() + p.n.slice(1)}.`).join("\n"),
+        evidencia: no.map((p) => `Sin referencia a ${p.n}`),
+      });
+    }
+    if (si.length) {
+      ok.push({
+        titulo: `La política informa ${si.length} de los ${puntos.length} puntos revisados`,
+        detalle: si.map((p) => `${p.k}) ${p.n}`).join("; ") + ". Se comprobó que el texto los menciona, no en qué términos lo hace.",
+        articulo: "Artículo 14 ter",
+      });
+    }
+  }
+
+  // ---- 3. Rastreadores y cookies ----
   const firmas = {
-    "Google Analytics": /google-analytics\.com|googletagmanager\.com|gtag\(/,
+    "Google Analytics / Tag Manager": /google-analytics\.com|googletagmanager\.com|gtag\(/,
     "Meta Pixel": /connect\.facebook\.net|fbq\(/,
     "TikTok Pixel": /analytics\.tiktok\.com/,
     "Hotjar": /hotjar\.com/,
-    "Clarity": /clarity\.ms/,
+    "Microsoft Clarity": /clarity\.ms/,
     "LinkedIn Insight": /snap\.licdn\.com/,
   };
-  Object.entries(firmas).forEach(([n, re]) => { if (re.test(html)) rastreadores.push(n); });
-  const banner = !!document.querySelector('[id*="cookie" i],[class*="cookie" i],[id*="consent" i],[class*="consent" i],[id*="cmp" i]') || has(/usamos cookies|utilizamos cookies|this site uses cookies|aviso de cookies/);
-  if (rastreadores.length) {
-    add("cookies", "Aviso de cookies con rastreadores", banner, 10,
-      `Rastreadores detectados: ${rastreadores.join(", ")}. Aviso de cookies: ${banner ? "sí" : "no"}.`,
-      "Pide consentimiento antes de cargar analítica o publicidad y ofrece rechazarlas.");
+  const rastreadores = Object.entries(firmas).filter(([, re]) => re.test(html)).map(([n]) => n);
+  const banner = !!document.querySelector('[id*="cookie" i],[class*="cookie" i],[id*="consent" i],[class*="consent" i]') ||
+    /usamos cookies|utilizamos cookies|aviso de cookies|this site uses cookies/.test(pageText);
+  let claves = 0;
+  try { claves = document.cookie.split(";").filter(Boolean).length + localStorage.length; } catch {}
+
+  if (rastreadores.length && !banner) {
+    grave({
+      id: "rastreadores", titulo: "Hay rastreadores de terceros y no se ve aviso de consentimiento",
+      detalle: "Se detectaron plataformas de analítica o publicidad sin un aviso de cookies que permita aceptarlas o rechazarlas.",
+      articulo: "Artículo 12 · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Carga esas herramientas solo después del consentimiento y ofrece una opción clara de rechazo.",
+      evidencia: rastreadores,
+    });
+  } else if (rastreadores.length) {
+    atencion({
+      id: "rastreadores-banner", titulo: "Hay rastreadores y un aviso de cookies: verifica el orden de carga",
+      detalle: "Las herramientas detectadas deberían cargarse solo después de que la persona acepte. Desde aquí no se puede comprobar ese orden.",
+      articulo: "Artículo 12 · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Revisa en la pestaña Red que no haya llamadas a esos servicios antes de aceptar.",
+      evidencia: rastreadores,
+    });
   } else {
-    add("cookies", "Rastreadores de terceros", true, 0,
-      banner ? "No se detectan rastreadores comunes; hay aviso de cookies." : "No se detectan rastreadores comunes.", "");
+    ok.push({ titulo: "No se detectaron rastreadores de terceros", detalle: `Se revisaron ${claves} claves entre cookies y almacenamiento, y ninguna corresponde a plataformas conocidas.`, articulo: "Artículo 12" });
   }
 
-  // 9. HTTPS
-  const https = location.protocol === "https:";
-  add("https", "Conexión segura (HTTPS)", https, 10,
-    https ? "La página usa HTTPS." : "La página no usa HTTPS.",
-    "Habilita HTTPS: la seguridad de los datos es un deber del responsable.");
+  // ---- 4. Formularios ----
+  const checks = [...document.querySelectorAll('input[type="checkbox"]')];
+  const marcadas = checks.filter((c) => c.checked && /acepto|consiento|autorizo|privacidad|newsletter|promoci|ofertas/.test(norm(c.closest("label,div,p")?.textContent || "")));
+  if (marcadas.length) {
+    grave({
+      id: "casilla-marcada", titulo: "Hay casillas de autorización marcadas de antemano",
+      detalle: "El consentimiento debe ser una acción afirmativa de la persona, no una opción activada por defecto.",
+      articulo: "Artículo 12 · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Desmarca las casillas por defecto y separa cada finalidad.",
+      evidencia: marcadas.map((c) => c.name || c.id || "casilla sin nombre"),
+    });
+  } else {
+    ok.push({ titulo: "Ninguna casilla de autorización viene marcada", detalle: `Se revisaron ${checks.length} casilla(s) en esta página y ninguna que implique autorización viene marcada por defecto.`, articulo: "Artículo 12" });
+  }
 
-  const pesoTotal = checks.reduce((s, c) => s + c.peso, 0);
-  const pesoOk = checks.filter((c) => c.ok).reduce((s, c) => s + c.peso, 0);
-  const puntaje = pesoTotal ? Math.round((pesoOk / pesoTotal) * 100) : 0;
+  const campos = [...document.querySelectorAll("input,select,textarea")].filter((c) => !/hidden|submit|button|checkbox|radio/.test(c.type));
+  const sensibles = campos.filter((c) => /salud|enfermedad|religi|ideolog|sindical|etnia|raza|orientaci[oó]n|biom[eé]tric|huella/.test(`${c.name} ${c.id} ${c.placeholder}`.toLowerCase()));
+  if (sensibles.length) {
+    atencion({
+      id: "sensibles", titulo: "Se piden datos que podrían ser sensibles",
+      detalle: "Algunos campos parecen pedir datos de categorías con protección reforzada.",
+      articulo: "Artículo 16 · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Confirma que exista una base de licitud válida y un consentimiento específico.",
+      evidencia: sensibles.map((c) => c.name || c.id || c.placeholder),
+    });
+  } else {
+    ok.push({ titulo: "No se piden datos sensibles en esta página", detalle: `Se revisaron ${campos.length} campos de formulario y ninguno pide datos de las categorías que la ley trata como sensibles. Otras páginas del sitio pueden pedirlos.`, articulo: "Artículo 16" });
+  }
 
-  return { url: location.href, host: location.hostname, titulo: document.title, puntaje, checks, rastreadores };
+  // ---- 5. HTTPS ----
+  if (location.protocol !== "https:") {
+    grave({
+      id: "https", titulo: "La página no usa conexión segura (HTTPS)",
+      detalle: "Los datos viajan sin cifrar. La seguridad del tratamiento es un deber del responsable.",
+      articulo: "Principio de seguridad · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Activa HTTPS en todo el sitio y redirige el tráfico HTTP.",
+      evidencia: [location.protocol],
+    });
+  }
+
+  const graves = findings.filter((f) => f.sev === "grave").length;
+  const semaforo = graves ? "rojo" : findings.length ? "amarillo" : "verde";
+  return { url: location.href, host: location.hostname + location.pathname, policy, findings, ok, graves, semaforo };
 }

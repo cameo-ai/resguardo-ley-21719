@@ -2,7 +2,11 @@
 
 Extensión de Chrome (Manifest V3) que revisa en un clic si el sitio que visitas muestra las señales básicas que exige la **Ley 21.719** de protección de datos personales de Chile.
 
-Revisa: política de privacidad, derechos del titular (acceso, rectificación, supresión, oposición, portabilidad, bloqueo), responsable y contacto, finalidad, plazo de conservación, terceros y transferencias, consentimiento en formularios, cookies y rastreadores, y HTTPS.
+Muestra un semáforo con hallazgos graves o por revisar, cada uno con su base legal, evidencia desplegable y "cómo se corrige", y una sección "qué se revisó".
+
+Revisa: enlace y contenido de la política de privacidad (se descarga solo si es del mismo sitio), mención de la Agencia de Protección de Datos, siete puntos que debe declarar la política (fecha/versión, canal de contacto, medidas de seguridad, portabilidad, plazo de conservación, retiro del consentimiento, decisiones automatizadas), rastreadores y aviso de cookies, casillas premarcadas, campos de datos sensibles y HTTPS.
+
+> Las referencias a artículos están tomadas de capturas de una herramienta similar y **deben verificarse contra el texto oficial** de la Ley 21.719 antes de confiar en ellas.
 
 ## Privacidad
 Todo el análisis ocurre en tu navegador. No se envía ni se guarda ningún dato. Solo usa los permisos `activeTab` y `scripting`, y únicamente cuando abres el popup.

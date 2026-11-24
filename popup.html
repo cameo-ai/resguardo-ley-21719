@@ -7,30 +7,27 @@
 </head>
 <body>
   <header>
-    <img src="icons/icon48.png" alt="" width="36" height="36">
+    <img src="icons/icon48.png" alt="" width="34" height="34">
     <div>
-      <h1>Resguardo</h1>
-      <p>Revisor Ley 21.719</p>
+      <h1>Resguardo · Revisor Ley 21.719</h1>
+      <p id="sitio"></p>
     </div>
   </header>
 
-  <main id="estado" class="cargando">Analizando la página…</main>
+  <main id="estado">Analizando la página y su política de privacidad…</main>
 
   <section id="resultado" hidden>
-    <div class="score">
-      <div class="anillo" id="anillo"><span id="puntaje">0</span></div>
-      <div>
-        <strong id="veredicto"></strong>
-        <small id="sitio"></small>
-      </div>
+    <div class="semaforo">
+      <div class="luces" id="luces"><i></i><i></i><i></i></div>
+      <strong id="titulo"></strong>
     </div>
-    <ul id="lista"></ul>
+    <div id="hallazgos"></div>
+    <h2>Qué se revisó</h2>
+    <div class="revisado" id="revisado"></div>
     <button id="copiar" type="button">Copiar informe</button>
+    <p class="pie">Solo cubre lo que se puede comprobar desde el navegador, en esta página. No es una certificación de cumplimiento ni asesoría legal.</p>
   </section>
 
-  <footer>
-    Revisión orientativa y local. No es asesoría legal.
-  </footer>
   <script src="scanner.js"></script>
   <script src="popup.js"></script>
 </body>
