@@ -61,7 +61,7 @@ function render(r) {
 function informe(r) {
   const l = ["Resguardo · Revisor Ley 21.719", `Página: ${r.url}`, `Resultado: ${titulo(r)}`, ""];
   r.findings.forEach((f) => {
-    l.push(`[${f.sev.toUpperCase()}] ${f.titulo}`, `  ${f.detalle}`, `  Base: ${f.articulo}`, `  Corrección: ${f.consejo.replace(/\n/g, " ")}`, "");
+    l.push(`[${f.sev.toUpperCase()}] ${f.titulo}`, `  ${f.detalle}`, `  Base: ${f.articulo}`, `  Corrección: ${f.consejo.replace(/\n/g, " ")}`, ...(f.evidencia || []).map((e) => `  Evidencia: ${e}`), "");
   });
   l.push("Sin hallazgos en:");
   r.ok.forEach((o) => l.push(`  - ${o.titulo}`));

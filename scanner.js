@@ -51,7 +51,8 @@ async function resguardoScan() {
       const r = await fetch(link.h, { credentials: "omit" });
       const doc = new DOMParser().parseFromString(await r.text(), "text/html");
       doc.querySelectorAll("script,style,noscript").forEach((n) => n.remove());
-      pol = norm(doc.body ? doc.body.textContent : "");
+      const contactos = [...doc.querySelectorAll('a[href^="mailto:"],a[href^="tel:"]')].map((a) => a.getAttribute("href")).join(" ");
+      pol = norm((doc.body ? doc.body.textContent : "") + " " + contactos);
       policy.chars = pol.length; policy.descargada = pol.length > 200;
     } catch { /* se informa más abajo */ }
   }
@@ -97,11 +98,11 @@ async function resguardoScan() {
 
     // 2b. Puntos que debe declarar la política
     const puntos = [
-      { k: "a", n: "la fecha y la versión de la política", re: /(vigencia|[uú]ltima actualizaci[oó]n|actualizad[oa] (el|en)|versi[oó]n\s*\d|fecha de (entrada|vigencia))/ },
-      { k: "c", n: "un canal de contacto para ejercer los derechos", re: /(ejercer (sus|tus)? ?derechos|derechos? arco|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/ },
+      { k: "a", n: "la fecha y la versión de la política", re: /vigencia|[uú]ltima (actualizaci[oó]n|revisi[oó]n)|actualizad[oa]|versi[oó]n\s*\d|fecha de (entrada|vigencia)|\d{1,2} de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) de \d{4}/ },
+      { k: "c", n: "un canal de contacto para ejercer los derechos", re: /ejercer (sus|tus)? ?derechos|derechos? arco|correo de contacto|formulario de contacto|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/ },
       { k: "e", n: "las medidas de seguridad adoptadas", re: /medidas (t[eé]cnicas|de seguridad|organizativas)|seguridad de (la informaci[oó]n|los datos)|cifrad|encriptad/ },
       { k: "f", n: "el derecho de portabilidad", re: /portabilidad/ },
-      { k: "i", n: "por cuánto tiempo se conservan los datos", re: /plazo de conservaci[oó]n|conservar[aá]n?|per[ií]odo de (conservaci[oó]n|retenci[oó]n)|mientras (dure|sea necesario)|a[nñ]os/ },
+      { k: "i", n: "por cuánto tiempo se conservan los datos", re: /plazo de conservaci[oó]n|conserv(an|ar|amos|aci[oó]n)|per[ií]odo de (conservaci[oó]n|retenci[oó]n)|tiempo (que sea )?necesario|mientras (dure|sea necesario)|a[nñ]os/ },
       { k: "k", n: "el derecho a retirar el consentimiento", re: /(retirar|revocar|revocaci[oó]n).{0,40}consentimiento|consentimiento.{0,60}(retirar|revocar)/ },
       { k: "l", n: "si hay decisiones automatizadas o perfiles", re: /decisiones? automatizadas?|elaboraci[oó]n de perfiles|perfilamiento|perfilado/ },
     ];
@@ -145,9 +146,13 @@ async function resguardoScan() {
     "Hotjar": !!window.hj,
     "Microsoft Clarity": !!window.clarity,
   };
-  const rastreadores = Object.entries(firmas)
-    .filter(([n, re]) => re.test(cargado) || globales[n])
-    .map(([n]) => n);
+  const urlsCargadas = cargado.split(" ").filter(Boolean);
+  const rastreadores = [];
+  Object.entries(firmas).forEach(([n, re]) => {
+    const u = urlsCargadas.find((x) => re.test(x));
+    if (u) rastreadores.push(`${n} — ${u.slice(0, 110)}`);
+    else if (globales[n]) rastreadores.push(`${n} — objeto global presente en la página`);
+  });
   const banner = !!document.querySelector('[id*="cookie" i],[class*="cookie" i],[id*="consent" i],[class*="consent" i]') ||
     /usamos cookies|utilizamos cookies|aviso de cookies|this site uses cookies/.test(pageText);
   let claves = 0;
