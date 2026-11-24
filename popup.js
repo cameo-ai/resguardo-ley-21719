@@ -48,7 +48,7 @@ function render(r) {
     const p = el("div", "poli");
     p.append(el("b", null, r.policy.descargada ? "Política de privacidad analizada" : "Política de privacidad detectada"));
     p.append(el("code", null, r.policy.url));
-    p.append(el("span", null, r.policy.descargada ? `${r.policy.chars.toLocaleString("es-CL")} caracteres · descargada desde el enlace del sitio` : "No se pudo descargar su contenido"));
+    p.append(el("span", null, r.policy.descargada ? `${r.policy.chars.toLocaleString("es-CL")} caracteres · ${r.policy.habitual ? "encontrada en una dirección habitual del sitio" : "descargada desde el enlace del sitio"}` : "No se pudo descargar su contenido"));
     rev.append(p);
   }
   r.ok.forEach((o) => {

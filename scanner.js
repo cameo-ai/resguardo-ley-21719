@@ -23,8 +23,19 @@ async function resguardoScan() {
   // ---- 1. Política de privacidad: localizar y descargar ----
   const cand = anchors.filter((l) => /pol[ií]tica.{0,20}(privacidad|datos)|privacidad|datos personales|privacy/.test(l.t + " " + l.hl));
   const mismoSitio = cand.find((l) => { try { return new URL(l.h).origin === location.origin; } catch { return false; } });
-  const link = mismoSitio || cand[0] || null;
-  let policy = { url: link ? link.h : null, chars: 0, descargada: false };
+  let link = mismoSitio || cand[0] || null;
+  let habitual = false;
+  if (!link) {
+    // Sin enlace visible: se prueban las direcciones habituales del mismo sitio.
+    for (const ruta of ["/politica-de-privacidad/", "/politica-privacidad/", "/privacidad/", "/privacy-policy/"]) {
+      try {
+        const r = await fetch(location.origin + ruta, { credentials: "omit", method: "HEAD" });
+        if (r.ok) { link = { t: "", h: location.origin + ruta, hl: ruta }; habitual = true; break; }
+      } catch { /* siguiente */ }
+    }
+  }
+  const mismoSitioFinal = habitual || mismoSitio;
+  let policy = { url: link ? link.h : null, chars: 0, descargada: false, habitual };
   let pol = "";
 
   if (!link) {
@@ -35,7 +46,7 @@ async function resguardoScan() {
       consejo: "Publica la política y enlázala de forma visible, por ejemplo en el pie de página.",
       evidencia: [`Enlaces revisados: ${anchors.length}`],
     });
-  } else if (mismoSitio) {
+  } else if (mismoSitioFinal) {
     try {
       const r = await fetch(link.h, { credentials: "omit" });
       const doc = new DOMParser().parseFromString(await r.text(), "text/html");
