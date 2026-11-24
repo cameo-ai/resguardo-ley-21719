@@ -8,8 +8,10 @@ Revisa: enlace y contenido de la política de privacidad (se descarga solo si es
 
 > Las referencias a artículos están tomadas de capturas de una herramienta similar y **deben verificarse contra el texto oficial** de la Ley 21.719 antes de confiar en ellas.
 
+Incluye también **Copiar prompt para arreglar con IA** e **informe imprimible** (guardar como PDF desde la pestaña del informe).
+
 ## Privacidad
-Todo el análisis ocurre en tu navegador. No se envía ni se guarda ningún dato. Solo usa los permisos `activeTab` y `scripting`, y únicamente cuando abres el popup.
+Todo el análisis ocurre en tu navegador. No se envía ni se guarda ningún dato. Permisos: `activeTab` y `scripting` (solo al abrir el popup) y `storage` (sesión, para pasar el informe a la pestaña imprimible).
 
 ## Instalar (modo desarrollador)
 1. Abre `chrome://extensions` y activa **Modo desarrollador**.

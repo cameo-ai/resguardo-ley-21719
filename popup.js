@@ -90,4 +90,29 @@ $("copiar").addEventListener("click", async () => {
   setTimeout(() => ($("copiar").textContent = "Copiar informe"), 1500);
 });
 
+function promptIA(r) {
+  const l = [
+    "Actúa como asesor de cumplimiento web en Chile. Corrige la política de privacidad y el sitio indicados para cumplir la Ley 21.719.",
+    `Sitio: ${r.url}`,
+    "Hallazgos a corregir:",
+  ];
+  r.findings.forEach((f, i) => l.push(`${i + 1}. ${f.titulo}. ${f.detalle} Base citada: ${f.articulo}. Qué hacer: ${f.consejo.replace(/\n/g, " ")}`));
+  l.push("", "Redacta el texto en español claro, sin inventar datos del responsable (deja campos entre corchetes para completar) y recuerda verificar los artículos citados contra el texto oficial de la ley.");
+  return l.join("\n");
+}
+
+function flash(btn, txt, orig) { btn.textContent = txt; setTimeout(() => (btn.textContent = orig), 1500); }
+
+$("prompt").addEventListener("click", async () => {
+  if (!ultimo) return;
+  await navigator.clipboard.writeText(promptIA(ultimo));
+  flash($("prompt"), "¡Copiado!", "Copiar prompt para arreglar con IA");
+});
+
+$("pdf").addEventListener("click", async () => {
+  if (!ultimo) return;
+  await chrome.storage.session.set({ informe: ultimo });
+  chrome.tabs.create({ url: chrome.runtime.getURL("report.html") });
+});
+
 main();

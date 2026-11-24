@@ -1,0 +1,23 @@
+* { box-sizing: border-box; }
+body { max-width: 780px; margin: 0 auto; padding: 24px; color: #14213d; font: 14px/1.55 system-ui, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 18px; }
+header h1 { margin: 0; font-size: 22px; }
+header p { margin: 2px 0 0; color: #5b6577; font-size: 12px; word-break: break-all; }
+header button { margin-left: auto; padding: 8px 14px; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; font-weight: 600; cursor: pointer; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #5b6577; margin: 22px 0 8px; }
+.res { font-size: 18px; font-weight: 700; }
+.rojo { color: #d64545; } .amarillo { color: #b88300; } .verde { color: #1a9d6a; }
+article { border: 1px solid #e3e8f0; border-left: 5px solid #d64545; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; break-inside: avoid; }
+article.atencion { border-left-color: #e0a100; }
+.etq { font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+article h3 { margin: 2px 0 6px; font-size: 15px; }
+article p { margin: 0 0 6px; }
+.art { font-size: 12px; font-weight: 600; color: #1d4ed8; }
+.fix { background: #eaf5ef; border-radius: 6px; padding: 8px 10px; white-space: pre-line; }
+.fix b { display: block; font-size: 11px; color: #1a9d6a; }
+ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: #5b6577; word-break: break-word; }
+.ok { padding: 8px 0; border-bottom: 1px solid #e3e8f0; break-inside: avoid; }
+.ok b::before { content: "✓ "; color: #1a9d6a; }
+.ok p { margin: 2px 0 0; color: #5b6577; font-size: 12px; }
+.pie { margin-top: 28px; font-size: 11px; font-style: italic; color: #5b6577; text-align: center; }
+@media print { .no-print { display: none; } body { padding: 0; } }
