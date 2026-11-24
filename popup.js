@@ -76,7 +76,7 @@ async function main() {
       $("estado").textContent = "Abre una página web (http/https) para analizarla.";
       return;
     }
-    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: resguardoScan });
+    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: resguardoScan });
     render(res.result);
   } catch (err) {
     $("estado").textContent = "No se pudo analizar esta página.";

@@ -29,8 +29,8 @@ async function resguardoScan() {
     // Sin enlace visible: se prueban las direcciones habituales del mismo sitio.
     for (const ruta of ["/politica-de-privacidad/", "/politica-privacidad/", "/privacidad/", "/privacy-policy/"]) {
       try {
-        const r = await fetch(location.origin + ruta, { credentials: "omit", method: "HEAD" });
-        if (r.ok) { link = { t: "", h: location.origin + ruta, hl: ruta }; habitual = true; break; }
+        const r = await fetch(location.origin + ruta, { credentials: "omit" });
+        if (r.ok && (await r.clone().text()).length > 500) { link = { t: "", h: location.origin + ruta, hl: ruta }; habitual = true; break; }
       } catch { /* siguiente */ }
     }
   }
@@ -54,6 +54,16 @@ async function resguardoScan() {
       pol = norm(doc.body ? doc.body.textContent : "");
       policy.chars = pol.length; policy.descargada = pol.length > 200;
     } catch { /* se informa más abajo */ }
+  }
+
+  if (habitual) {
+    atencion({
+      id: "politica-sin-enlace", titulo: "La política existe pero no está enlazada de forma visible",
+      detalle: "No hay un enlace a la política en esta página; se encontró en una dirección habitual del sitio.",
+      articulo: "Artículo 14 ter · Ley 19.628, modificada por la Ley 21.719",
+      consejo: "Enlaza la política en el pie de página y en cada formulario que recoja datos.",
+      evidencia: [link.h],
+    });
   }
 
   if (link && !policy.descargada) {
@@ -124,7 +134,20 @@ async function resguardoScan() {
     "Microsoft Clarity": /clarity\.ms/,
     "LinkedIn Insight": /snap\.licdn\.com/,
   };
-  const rastreadores = Object.entries(firmas).filter(([, re]) => re.test(html)).map(([n]) => n);
+  // Solo cuenta lo que realmente se cargó: peticiones de red, <script src> y objetos globales.
+  const cargado = [
+    ...performance.getEntriesByType("resource").map((e) => e.name),
+    ...[...document.querySelectorAll("script[src],iframe[src],img[src]")].map((n) => n.src),
+  ].join(" ").toLowerCase();
+  const globales = {
+    "Google Analytics / Tag Manager": !!(window.ga || window.gtag || window.google_tag_manager),
+    "Meta Pixel": !!window.fbq,
+    "Hotjar": !!window.hj,
+    "Microsoft Clarity": !!window.clarity,
+  };
+  const rastreadores = Object.entries(firmas)
+    .filter(([n, re]) => re.test(cargado) || globales[n])
+    .map(([n]) => n);
   const banner = !!document.querySelector('[id*="cookie" i],[class*="cookie" i],[id*="consent" i],[class*="consent" i]') ||
     /usamos cookies|utilizamos cookies|aviso de cookies|this site uses cookies/.test(pageText);
   let claves = 0;
